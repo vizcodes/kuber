@@ -1,0 +1,63 @@
+<!--
+  Kuber Cash Flow Widget — Monthly income vs expense bars
+  Rendered via show_widget. Replace const DATA = {} with computed JSON.
+
+  DATA shape:
+  {
+    months: [
+      { label: "Oct '25", income: 7200, expense: 5100 },
+      ...12 months
+    ]
+  }
+-->
+<style>
+  .cf { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif; }
+  .cf * { box-sizing: border-box; margin: 0; padding: 0; }
+  .cf-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .cf-title { font-size: 16px; font-weight: 500; color: var(--text-primary, #F5F4F1); }
+  .cf-legend { display: flex; gap: 14px; }
+  .cf-legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text-muted, #8C8C87); }
+  .cf-legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .cf-chart { height: 300px; position: relative; }
+</style>
+<div class="cf">
+  <div class="cf-header">
+    <div class="cf-title">Monthly cash flow</div>
+    <div class="cf-legend">
+      <span class="cf-legend-item"><span class="cf-legend-dot" style="background:#5DCAA5"></span> Income</span>
+      <span class="cf-legend-item"><span class="cf-legend-dot" style="background:#F0997B"></span> Expense</span>
+    </div>
+  </div>
+  <div class="cf-chart"><canvas id="cf-canvas"></canvas></div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.7/chart.umd.min.js"></script>
+<script>
+const DATA = {};
+
+function fmt(n) {
+  return '$' + Math.abs(n).toLocaleString('en-US', {maximumFractionDigits: 0});
+}
+
+const months = DATA.months || [];
+new Chart(document.getElementById('cf-canvas'), {
+  type: 'bar',
+  data: {
+    labels: months.map(m => m.label),
+    datasets: [
+      { label: 'Income', data: months.map(m => m.income), backgroundColor: '#5DCAA5', borderRadius: 3, maxBarThickness: 22 },
+      { label: 'Expense', data: months.map(m => m.expense), backgroundColor: '#F0997B', borderRadius: 3, maxBarThickness: 22 },
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': ' + fmt(ctx.raw) } },
+    },
+    scales: {
+      x: { grid: { display: false }, ticks: { color: '#8C8C87', font: { size: 11 } } },
+      y: { grid: { color: 'rgba(140,140,135,0.1)' }, ticks: { color: '#8C8C87', font: { size: 11 }, callback: v => fmt(v) } },
+    },
+  },
+});
+</script>

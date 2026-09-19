@@ -1,0 +1,141 @@
+<!--
+  Kuber Spending by Category Widget
+  Rendered via show_widget. Replace const DATA = {} with computed JSON.
+
+  DATA shape:
+  {
+    periods: {
+      "30": { income: 8756.55, expense: 5472.18, categories: [...] },
+      "60": { ... },
+      "90": { ... },
+      "max": { ... }
+    },
+    accounts: [
+      { name: "Adv Plus Banking", balance: 19524.37 },
+      { name: "BOA Credit", balance: 256.61 }
+    ]
+  }
+
+  Each categories array:
+  [{ name: "Housing", amount: 1850, count: 2, color: "#AFA9EC" }, ...]
+-->
+<style>
+  .sp { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif; }
+  .sp * { box-sizing: border-box; margin: 0; padding: 0; }
+  .sp-filters { display: flex; gap: 6px; margin-bottom: 14px; }
+  .sp-btn {
+    padding: 6px 14px; border-radius: 8px; border: 1px solid var(--border-strong, #242426);
+    background: transparent; color: var(--text-secondary, #8C8C87); font-size: 12px;
+    cursor: pointer; font-family: inherit;
+  }
+  .sp-btn.active { background: var(--bg-accent, #2a78d6); color: #fff; border-color: transparent; }
+  .sp-kpi-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px; }
+  .sp-kpi {
+    background: var(--surface-1, #141416); border-radius: 10px; padding: 12px;
+    border: 1px solid var(--border-strong, #242426);
+  }
+  .sp-kpi-label { font-size: 11px; color: var(--text-muted, #8C8C87); margin-bottom: 2px; }
+  .sp-kpi-val { font-size: 18px; font-weight: 500; font-variant-numeric: tabular-nums; }
+  .sp-kpi-val.pos { color: #5DCAA5; }
+  .sp-kpi-val.neg { color: #F0997B; }
+  .sp-chart-wrap { position: relative; height: 280px; margin-bottom: 14px; }
+  .sp-legend { display: flex; flex-wrap: wrap; gap: 12px; }
+  .sp-legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text-secondary, #8C8C87); }
+  .sp-legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .sp-acct-row { display: flex; gap: 10px; margin-top: 14px; }
+  .sp-acct {
+    flex: 1; background: var(--surface-1, #141416); border-radius: 10px; padding: 12px;
+    border: 1px solid var(--border-strong, #242426);
+  }
+  .sp-acct-name { font-size: 11px; color: var(--text-muted, #8C8C87); }
+  .sp-acct-bal { font-size: 16px; font-weight: 500; font-variant-numeric: tabular-nums; color: var(--text-primary, #F5F4F1); margin-top: 2px; }
+  @media (max-width: 500px) { .sp-kpi-row { grid-template-columns: 1fr; } .sp-acct-row { flex-direction: column; } }
+</style>
+<div class="sp">
+  <div class="sp-filters" id="sp-filters"></div>
+  <div class="sp-kpi-row" id="sp-kpis"></div>
+  <div class="sp-chart-wrap"><canvas id="sp-chart"></canvas></div>
+  <div class="sp-legend" id="sp-legend"></div>
+  <div class="sp-acct-row" id="sp-accts"></div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.7/chart.umd.min.js"></script>
+<script>
+const DATA = {};
+
+function fmt(n) {
+  const abs = Math.abs(n);
+  const d = abs.toFixed(2).split('.');
+  return (n < 0 ? '−' : '') + '$' + Number(d[0]).toLocaleString('en-US') + '.' + d[1];
+}
+function fmtShort(n) {
+  return '$' + Math.abs(n).toLocaleString('en-US', {maximumFractionDigits: 0});
+}
+
+const periods = ['30', '60', '90', 'max'];
+const labels = { '30': 'Last 30d', '60': 'Last 60d', '90': 'Last 90d', 'max': 'Max' };
+let currentPeriod = '30';
+let chart = null;
+
+function renderFilters() {
+  const el = document.getElementById('sp-filters');
+  el.innerHTML = periods.map(p =>
+    `<button class="sp-btn${p === currentPeriod ? ' active' : ''}" data-range="${p}">${labels[p]}</button>`
+  ).join('');
+  el.querySelectorAll('.sp-btn').forEach(btn => {
+    btn.addEventListener('click', () => { currentPeriod = btn.dataset.range; render(); });
+  });
+}
+
+function render() {
+  renderFilters();
+  const pd = (DATA.periods || {})[currentPeriod] || { income: 0, expense: 0, categories: [] };
+  const net = pd.income - pd.expense;
+
+  // KPIs
+  document.getElementById('sp-kpis').innerHTML = `
+    <div class="sp-kpi"><div class="sp-kpi-label">Net</div><div class="sp-kpi-val ${net >= 0 ? 'pos' : 'neg'}">${fmt(net)}</div></div>
+    <div class="sp-kpi"><div class="sp-kpi-label">Income</div><div class="sp-kpi-val pos">${fmt(pd.income)}</div></div>
+    <div class="sp-kpi"><div class="sp-kpi-label">Expense</div><div class="sp-kpi-val neg">${fmt(pd.expense)}</div></div>
+  `;
+
+  // Chart
+  const cats = pd.categories || [];
+  if (chart) chart.destroy();
+  chart = new Chart(document.getElementById('sp-chart'), {
+    type: 'bar',
+    data: {
+      labels: cats.map(c => c.name),
+      datasets: [{
+        data: cats.map(c => c.amount),
+        backgroundColor: cats.map(c => c.color),
+        borderRadius: 4,
+        maxBarThickness: 24,
+      }]
+    },
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => fmt(ctx.raw) + ' (' + (cats[ctx.dataIndex]?.count || 0) + ' txns)' } },
+      },
+      scales: {
+        x: { display: false },
+        y: { grid: { display: false }, ticks: { color: '#8C8C87', font: { size: 12 } } },
+      },
+    },
+  });
+
+  // Legend
+  document.getElementById('sp-legend').innerHTML = cats.map(c =>
+    `<span class="sp-legend-item"><span class="sp-legend-dot" style="background:${c.color}"></span>${c.name} ${fmtShort(c.amount)}</span>`
+  ).join('');
+
+  // Accounts
+  const accts = DATA.accounts || [];
+  document.getElementById('sp-accts').innerHTML = accts.map(a =>
+    `<div class="sp-acct"><div class="sp-acct-name">${a.name}</div><div class="sp-acct-bal">${fmt(a.balance)}</div></div>`
+  ).join('');
+}
+
+render();
+</script>

@@ -1,0 +1,163 @@
+<!--
+  Kuber Money Flow Sankey Widget
+  Rendered via show_widget. Replace const DATA = {} with computed JSON.
+
+  DATA shape:
+  {
+    period: "September 2026",
+    totalIncome: 7480,
+    totalAllocated: 7226,
+    cashInBank: 6214,
+    bankLabel: "Chase + Mercury",
+    incomeSources: [
+      { name: "Salary - Northwind", amount: 4200, color: "#85B7EB" },
+      { name: "Freelance - Stripe", amount: 2400, color: "#378ADD" },
+      { name: "Dividends - Vanguard", amount: 880, color: "#B5D4F4" },
+    ],
+    destinations: [
+      { name: "Expenses", amount: 4126, pct: 55, color: "#F0997B" },
+      { name: "Savings", amount: 1900, pct: 25, color: "#5DCAA5" },
+      { name: "Investments", amount: 1200, pct: 16, color: "#AFA9EC" },
+      { name: "Unallocated", amount: 254, pct: 3, color: "#8C8C87" },
+    ],
+    kpis: {
+      runway: "1.5 months",
+      keptFromIncome: "45%",
+      largestOutflow: { name: "Housing", amount: 1850 },
+    }
+  }
+-->
+<style>
+  .ks { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif; }
+  .ks * { box-sizing: border-box; margin: 0; padding: 0; }
+  .ks-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
+  .ks-title { font-size: 20px; font-weight: 500; color: var(--text-primary, #F5F4F1); }
+  .ks-subtitle { font-size: 12px; color: var(--text-muted, #8C8C87); margin-top: 2px; }
+  .ks-sankey { position: relative; width: 100%; min-height: 280px; }
+  .ks-col { position: absolute; top: 0; display: flex; flex-direction: column; gap: 4px; }
+  .ks-col-left { left: 0; width: 30%; }
+  .ks-col-center { left: 38%; width: 24%; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .ks-col-right { right: 0; width: 30%; }
+  .ks-ribbon {
+    border-radius: 4px; display: flex; align-items: center; padding: 8px 12px;
+    font-size: 12px; color: var(--text-primary, #F5F4F1); position: relative;
+  }
+  .ks-ribbon-label { font-size: 12px; }
+  .ks-ribbon-amt { font-size: 12px; font-variant-numeric: tabular-nums; opacity: 0.7; }
+  .ks-center-bar {
+    background: #FFFFFF; border-radius: 6px; width: 8px; flex: 1;
+  }
+  .ks-center-label { text-align: center; margin-top: 8px; }
+  .ks-center-title { font-size: 12px; color: var(--text-muted, #8C8C87); }
+  .ks-center-value { font-size: 14px; font-weight: 500; font-variant-numeric: tabular-nums; color: var(--text-primary, #F5F4F1); }
+  .ks-dest-label { position: absolute; right: -110%; top: 50%; transform: translateY(-50%); white-space: nowrap; }
+  .ks-kpi-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 16px; }
+  .ks-kpi {
+    background: var(--surface-1, #141416); border-radius: 12px; padding: 14px;
+    border: 1px solid var(--border-strong, #242426);
+  }
+  .ks-kpi-label { font-size: 11px; color: var(--text-muted, #8C8C87); margin-bottom: 4px; }
+  .ks-kpi-value { font-size: 18px; font-weight: 500; color: var(--text-primary, #F5F4F1); font-variant-numeric: tabular-nums; }
+  .ks-kpi-value.expense { color: #F0997B; }
+  .ks-flow-svg { width: 100%; }
+  @media (max-width: 500px) { .ks-kpi-row { grid-template-columns: 1fr; } }
+</style>
+<div class="ks">
+  <div class="ks-header">
+    <div>
+      <div class="ks-title">Money flow</div>
+      <div class="ks-subtitle" id="ks-sub"></div>
+    </div>
+  </div>
+  <svg id="ks-svg" class="ks-flow-svg" viewBox="0 0 700 320"></svg>
+  <div class="ks-kpi-row" id="ks-kpis"></div>
+</div>
+<script>
+const DATA = {};
+
+function fmt(n) {
+  return '$' + Math.abs(n).toLocaleString('en-US', {maximumFractionDigits: 0});
+}
+
+const sub = document.getElementById('ks-sub');
+sub.textContent = `${DATA.period || ''} · ${fmt(DATA.totalIncome || 0)} in · ${fmt(DATA.totalAllocated || 0)} allocated`;
+
+// Build SVG Sankey
+const svg = document.getElementById('ks-svg');
+const W = 700, H = 320;
+const sources = DATA.incomeSources || [];
+const dests = DATA.destinations || [];
+const totalIn = DATA.totalIncome || 1;
+
+const colL = 20, colLW = 200;
+const colCX = 335, colCW = 10;
+const colR = 480, colRW = 200;
+const gap = 6;
+
+// Left ribbons
+let yL = 10;
+const leftRibbons = sources.map(s => {
+  const h = Math.max(28, (s.amount / totalIn) * (H - 40));
+  const r = { ...s, y: yL, h };
+  yL += h + gap;
+  return r;
+});
+
+// Right ribbons
+let yR = 10;
+const rightRibbons = dests.map(d => {
+  const h = Math.max(28, (d.amount / totalIn) * (H - 40));
+  const r = { ...d, y: yR, h };
+  yR += h + gap;
+  return r;
+});
+
+// Center bar
+const cTop = 10, cBot = Math.max(yL, yR) - gap;
+
+let svgContent = '';
+
+// Draw left ribbons + flow paths to center
+leftRibbons.forEach(r => {
+  // Source bar
+  svgContent += `<rect x="${colL}" y="${r.y}" width="${colLW}" height="${r.h}" rx="4" fill="${r.color}" opacity="0.85"/>`;
+  // Label
+  const ly = r.y + r.h / 2;
+  svgContent += `<text x="${colL + 12}" y="${ly - 2}" fill="#042C53" font-size="12" font-family="-apple-system,sans-serif">${r.name}</text>`;
+  svgContent += `<text x="${colL + 12}" y="${ly + 12}" fill="#0C447C" font-size="11" font-family="-apple-system,sans-serif">${fmt(r.amount)}</text>`;
+  // Flow path
+  const sx = colL + colLW, sy = r.y + r.h / 2;
+  const ex = colCX, ey = sy;
+  svgContent += `<path d="M${sx},${r.y} C${sx + 60},${r.y} ${ex - 60},${r.y} ${ex},${r.y} L${ex},${r.y + r.h} C${ex - 60},${r.y + r.h} ${sx + 60},${r.y + r.h} ${sx},${r.y + r.h} Z" fill="${r.color}" opacity="0.25"/>`;
+});
+
+// Center bar
+svgContent += `<rect x="${colCX}" y="${cTop}" width="${colCW}" height="${cBot - cTop}" rx="5" fill="#FFFFFF"/>`;
+svgContent += `<text x="${colCX + colCW / 2}" y="${cBot + 18}" text-anchor="middle" fill="#8C8C87" font-size="11" font-family="-apple-system,sans-serif">Cash in bank ${fmt(DATA.cashInBank || 0)}</text>`;
+
+// Right ribbons + flow paths from center
+rightRibbons.forEach(r => {
+  // Flow path
+  const sx = colCX + colCW, sy = r.y;
+  const ex = colR;
+  svgContent += `<path d="M${sx},${r.y} C${sx + 60},${r.y} ${ex - 60},${r.y} ${ex},${r.y} L${ex},${r.y + r.h} C${ex - 60},${r.y + r.h} ${sx + 60},${r.y + r.h} ${sx},${r.y + r.h} Z" fill="${r.color}" opacity="0.35"/>`;
+  // Dest bar
+  svgContent += `<rect x="${colR}" y="${r.y}" width="6" height="${r.h}" rx="3" fill="${r.color}"/>`;
+  // Label
+  const ly = r.y + r.h / 2;
+  svgContent += `<text x="${colR + 16}" y="${ly - 4}" fill="#F5F4F1" font-size="12" font-family="-apple-system,sans-serif">${r.name}</text>`;
+  svgContent += `<text x="${colR + 16}" y="${ly + 10}" fill="#8C8C87" font-size="11" font-family="-apple-system,sans-serif">${fmt(r.amount)} · ${r.pct}%</text>`;
+});
+
+svg.innerHTML = svgContent;
+svg.setAttribute('viewBox', `0 0 ${W} ${Math.max(H, cBot + 32)}`);
+
+// KPIs
+const kpis = DATA.kpis || {};
+const kpiEl = document.getElementById('ks-kpis');
+kpiEl.innerHTML = `
+  <div class="ks-kpi"><div class="ks-kpi-label">Liquid runway</div><div class="ks-kpi-value">${kpis.runway || ''}</div></div>
+  <div class="ks-kpi"><div class="ks-kpi-label">Kept from income</div><div class="ks-kpi-value" style="color:#5DCAA5">${kpis.keptFromIncome || ''}</div></div>
+  <div class="ks-kpi"><div class="ks-kpi-label">Largest outflow</div><div class="ks-kpi-value expense">${kpis.largestOutflow ? kpis.largestOutflow.name + ' ' + fmt(kpis.largestOutflow.amount) : ''}</div></div>
+`;
+</script>

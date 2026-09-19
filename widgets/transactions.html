@@ -1,0 +1,112 @@
+<!--
+  Kuber Transaction List Widget
+  Rendered via show_widget. Replace const DATA = {} with computed JSON.
+
+  DATA shape:
+  {
+    transactions: [
+      { date: "Sep 15", merchant: "Whole Foods Market", category: "Food & Dining",
+        catColor: "#F0997B", amount: -86.40, account: "Chase 4412", type: "expense" },
+      ...
+    ],
+    categories: ["All", "Food & Dining", "Housing", ...],
+  }
+-->
+<style>
+  .tl { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif; }
+  .tl * { box-sizing: border-box; margin: 0; padding: 0; }
+  .tl-controls { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+  .tl-search {
+    flex: 1; min-width: 160px; padding: 7px 10px; border-radius: 8px;
+    border: 1px solid var(--border-strong, #242426); background: var(--surface-1, #141416);
+    color: var(--text-primary, #F5F4F1); font-size: 13px; font-family: inherit; outline: none;
+  }
+  .tl-search::placeholder { color: var(--text-muted, #5A5A57); }
+  .tl-select {
+    padding: 7px 10px; border-radius: 8px; border: 1px solid var(--border-strong, #242426);
+    background: var(--surface-1, #141416); color: var(--text-primary, #F5F4F1);
+    font-size: 13px; font-family: inherit; outline: none;
+  }
+  .tl-table { width: 100%; border-collapse: collapse; }
+  .tl-row {
+    display: flex; align-items: center; padding: 8px 0; gap: 10px;
+    border-bottom: 1px solid var(--border-strong, #1E1E20);
+  }
+  .tl-row:last-child { border-bottom: none; }
+  .tl-date { width: 60px; font-size: 12px; color: var(--text-muted, #8C8C87); flex-shrink: 0; }
+  .tl-merchant { flex: 1; min-width: 0; }
+  .tl-merchant-name { font-size: 13px; color: var(--text-primary, #F5F4F1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tl-merchant-cat { font-size: 11px; color: var(--text-muted, #8C8C87); display: flex; align-items: center; gap: 4px; margin-top: 1px; }
+  .tl-cat-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .tl-amount { font-size: 13px; font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; min-width: 80px; }
+  .tl-amount.income { color: #5DCAA5; }
+  .tl-amount.expense { color: var(--text-primary, #F5F4F1); }
+  .tl-empty { text-align: center; padding: 24px; color: var(--text-muted, #8C8C87); font-size: 13px; }
+  .tl-count { font-size: 11px; color: var(--text-muted, #8C8C87); margin-top: 8px; text-align: right; }
+</style>
+<div class="tl">
+  <div class="tl-controls">
+    <input type="text" class="tl-search" id="tl-search" placeholder="Search transactions…" />
+    <select class="tl-select" id="tl-cat-filter"></select>
+  </div>
+  <div id="tl-list"></div>
+  <div class="tl-count" id="tl-count"></div>
+</div>
+<script>
+const DATA = {};
+
+function fmt(n) {
+  const abs = Math.abs(n);
+  const d = abs.toFixed(2).split('.');
+  const whole = Number(d[0]).toLocaleString('en-US');
+  const sign = n < 0 ? '−' : n > 0 ? '+' : '';
+  return sign + '$' + whole + '.<span style="opacity:0.5">' + d[1] + '</span>';
+}
+
+const txns = DATA.transactions || [];
+const cats = DATA.categories || ['All'];
+
+// Category filter
+const catSelect = document.getElementById('tl-cat-filter');
+cats.forEach(c => {
+  const opt = document.createElement('option');
+  opt.value = c; opt.textContent = c;
+  catSelect.appendChild(opt);
+});
+
+function renderList() {
+  const search = document.getElementById('tl-search').value.toLowerCase();
+  const catFilter = catSelect.value;
+
+  const filtered = txns.filter(t => {
+    if (catFilter !== 'All' && t.category !== catFilter) return false;
+    if (search && !t.merchant.toLowerCase().includes(search) && !t.category.toLowerCase().includes(search)) return false;
+    return true;
+  });
+
+  const listEl = document.getElementById('tl-list');
+  if (filtered.length === 0) {
+    listEl.innerHTML = '<div class="tl-empty">No transactions found</div>';
+  } else {
+    listEl.innerHTML = filtered.slice(0, 50).map(t => {
+      const cls = t.type === 'income' ? 'income' : 'expense';
+      const amt = t.type === 'income' ? Math.abs(t.amount) : -Math.abs(t.amount);
+      return `<div class="tl-row">
+        <div class="tl-date">${t.date}</div>
+        <div class="tl-merchant">
+          <div class="tl-merchant-name">${t.merchant}</div>
+          <div class="tl-merchant-cat"><span class="tl-cat-dot" style="background:${t.catColor}"></span>${t.category} · ${t.account}</div>
+        </div>
+        <div class="tl-amount ${cls}">${fmt(amt)}</div>
+      </div>`;
+    }).join('');
+  }
+
+  document.getElementById('tl-count').textContent =
+    `Showing ${Math.min(filtered.length, 50)} of ${filtered.length} transactions`;
+}
+
+document.getElementById('tl-search').addEventListener('input', renderList);
+catSelect.addEventListener('change', renderList);
+renderList();
+</script>

@@ -1,0 +1,164 @@
+<!--
+  Kuber Overview Dashboard Widget
+  Rendered via show_widget. Replace const DATA = {} with computed JSON.
+
+  DATA shape:
+  {
+    netWorth: 84210.66,
+    income: 7480,
+    spending: 4126,
+    saved: 3354,
+    savedPct: 45,
+    months: [
+      { label: "Apr", income: 6200, expense: 4800 },
+      ...12 months
+    ],
+    topCategories: [
+      { name: "Housing", amount: 1850, color: "#AFA9EC", pct: 45 },
+      ...
+    ],
+    recentActivity: [
+      { merchant: "Whole Foods", category: "Food & Dining", account: "Chase 4412", amount: -86.40, date: "Sep 15" },
+      ...
+    ],
+    accounts: [
+      { name: "Chase checking 4412", balance: 6214 },
+      ...
+    ]
+  }
+-->
+<style>
+  .kd { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif; }
+  .kd * { box-sizing: border-box; margin: 0; padding: 0; }
+  .kd-grid { display: grid; gap: 12px; }
+  .kd-kpi-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .kd-card {
+    background: var(--surface-1, #141416); border-radius: 12px; padding: 16px;
+    border: 1px solid var(--border-strong, #242426);
+  }
+  .kd-label { font-size: 12px; color: var(--text-muted, #8C8C87); font-weight: 400; margin-bottom: 4px; }
+  .kd-metric { font-size: 22px; font-weight: 500; font-variant-numeric: tabular-nums; color: var(--text-primary, #F5F4F1); }
+  .kd-metric.income { color: #5DCAA5; }
+  .kd-metric.expense { color: #F0997B; }
+  .kd-nw { font-size: 32px; font-weight: 500; font-variant-numeric: tabular-nums; color: var(--text-primary, #F5F4F1); }
+  .kd-nw .cents { opacity: 0.4; }
+  .kd-sub { font-size: 12px; color: var(--text-muted, #8C8C87); margin-top: 2px; }
+  .kd-2col { display: grid; grid-template-columns: 1.5fr 1fr; gap: 12px; }
+  .kd-cat-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border-strong, #1E1E20); }
+  .kd-cat-row:last-child { border-bottom: none; }
+  .kd-cat-name { font-size: 13px; color: var(--text-primary, #F5F4F1); flex: 1; }
+  .kd-cat-amt { font-size: 13px; font-weight: 500; font-variant-numeric: tabular-nums; color: var(--text-primary, #F5F4F1); margin-left: 12px; white-space: nowrap; }
+  .kd-cat-bar { height: 4px; border-radius: 2px; margin-top: 4px; }
+  .kd-activity-row { display: flex; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border-strong, #1E1E20); gap: 10px; }
+  .kd-activity-row:last-child { border-bottom: none; }
+  .kd-act-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+  .kd-act-info { flex: 1; min-width: 0; }
+  .kd-act-name { font-size: 13px; color: var(--text-primary, #F5F4F1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .kd-act-sub { font-size: 11px; color: var(--text-muted, #8C8C87); }
+  .kd-act-amt { font-size: 13px; font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .kd-act-amt.pos { color: #5DCAA5; }
+  .kd-act-amt.neg { color: var(--text-primary, #F5F4F1); }
+  .kd-chart-wrap { height: 200px; position: relative; }
+  .kd-legend { display: flex; gap: 16px; justify-content: flex-end; margin-bottom: 8px; }
+  .kd-legend-item { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text-muted, #8C8C87); }
+  .kd-legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+  @media (max-width: 500px) {
+    .kd-kpi-row { grid-template-columns: 1fr; }
+    .kd-2col { grid-template-columns: 1fr; }
+  }
+</style>
+<div class="kd kd-grid">
+  <!-- Net worth -->
+  <div class="kd-card">
+    <div class="kd-label">Total net worth</div>
+    <div class="kd-nw" id="kd-nw"></div>
+  </div>
+  <!-- KPI row -->
+  <div class="kd-kpi-row">
+    <div class="kd-card"><div class="kd-label">Income</div><div class="kd-metric income" id="kd-inc"></div></div>
+    <div class="kd-card"><div class="kd-label">Spending</div><div class="kd-metric expense" id="kd-exp"></div></div>
+    <div class="kd-card"><div class="kd-label">Saved this month</div><div class="kd-metric" id="kd-saved"></div></div>
+  </div>
+  <!-- Cash flow + Top categories -->
+  <div class="kd-2col">
+    <div class="kd-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <div class="kd-label" style="margin-bottom:0">Cash flow</div>
+        <div class="kd-legend">
+          <span class="kd-legend-item"><span class="kd-legend-dot" style="background:#5DCAA5"></span> in</span>
+          <span class="kd-legend-item"><span class="kd-legend-dot" style="background:#F0997B"></span> out</span>
+        </div>
+      </div>
+      <div class="kd-chart-wrap"><canvas id="kd-cf-chart"></canvas></div>
+    </div>
+    <div class="kd-card">
+      <div class="kd-label" style="margin-bottom:8px">Top categories</div>
+      <div id="kd-cats"></div>
+    </div>
+  </div>
+  <!-- Recent activity -->
+  <div class="kd-card">
+    <div class="kd-label" style="margin-bottom:8px">Recent activity</div>
+    <div id="kd-activity"></div>
+  </div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.7/chart.umd.min.js"></script>
+<script>
+const DATA = {};
+
+function fmt(n) {
+  const abs = Math.abs(n);
+  const d = abs.toFixed(2).split('.');
+  const whole = Number(d[0]).toLocaleString('en-US');
+  return (n < 0 ? '−' : '') + '$' + whole + '.' + d[1];
+}
+function fmtWhole(n) {
+  return '$' + Math.abs(n).toLocaleString('en-US', {maximumFractionDigits: 0});
+}
+function fmtNW(n) {
+  const d = n.toFixed(2).split('.');
+  return '$' + Number(d[0]).toLocaleString('en-US') + '<span class="cents">.' + d[1] + '</span>';
+}
+
+document.getElementById('kd-nw').innerHTML = fmtNW(DATA.netWorth || 0);
+document.getElementById('kd-inc').textContent = fmtWhole(DATA.income || 0);
+document.getElementById('kd-exp').textContent = fmtWhole(DATA.spending || 0);
+document.getElementById('kd-saved').textContent = (DATA.savedPct || 0) + '%';
+
+// Top categories
+const catsEl = document.getElementById('kd-cats');
+(DATA.topCategories || []).forEach(c => {
+  catsEl.innerHTML += `<div class="kd-cat-row"><div><div class="kd-cat-name">${c.name}</div><div class="kd-cat-bar" style="width:${c.pct}%;background:${c.color}"></div></div><div class="kd-cat-amt">${fmtWhole(c.amount)}</div></div>`;
+});
+
+// Recent activity
+const actEl = document.getElementById('kd-activity');
+(DATA.recentActivity || []).slice(0, 8).forEach(a => {
+  const cls = a.amount > 0 ? 'pos' : 'neg';
+  const sign = a.amount > 0 ? '+' : '';
+  actEl.innerHTML += `<div class="kd-activity-row"><div class="kd-act-info"><div class="kd-act-name">${a.merchant}</div><div class="kd-act-sub">${a.category} · ${a.account}</div></div><div class="kd-act-amt ${cls}">${sign}${fmt(a.amount)}</div></div>`;
+});
+
+// Cash flow chart
+const cfCtx = document.getElementById('kd-cf-chart');
+if (cfCtx && DATA.months) {
+  new Chart(cfCtx, {
+    type: 'bar',
+    data: {
+      labels: DATA.months.map(m => m.label),
+      datasets: [
+        { label: 'Income', data: DATA.months.map(m => m.income), backgroundColor: '#5DCAA5', borderRadius: 3, maxBarThickness: 18 },
+        { label: 'Expense', data: DATA.months.map(m => m.expense), backgroundColor: '#F0997B', borderRadius: 3, maxBarThickness: 18 },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => fmt(ctx.raw) } } },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: '#8C8C87', font: { size: 11 } } },
+        y: { display: false },
+      },
+    },
+  });
+}
+</script>

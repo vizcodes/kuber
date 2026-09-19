@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python scripts/sync.py*)",
+      "Bash(python scripts/plaid_link.py*)",
+      "Bash(pip install*)"
+    ]
+  }
+}

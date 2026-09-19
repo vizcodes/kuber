@@ -1,0 +1,36 @@
+:root {
+  --surface-canvas: #0A0A0B;
+  --surface-card: #141416;
+  --surface-raised: #1C1C1F;
+  --surface-track: #1F1F22;
+  --border-hairline: #242426;
+  --border-subtle: #1E1E20;
+  --border-row: #18181A;
+  --text-primary: #F5F4F1;
+  --text-secondary: #8C8C87;
+  --text-tertiary: #6E6E6A;
+  --text-muted: #5A5A57;
+  --text-dim: #4A4A48;
+  --text-inverse: #0A0A0B;
+  --flow-income: #5DCAA5;
+  --flow-expense: #F0997B;
+  --flow-savings: #5DCAA5;
+  --flow-investment: #AFA9EC;
+  --flow-unallocated: #8C8C87;
+  --category-housing: #AFA9EC;
+  --category-food: #F0997B;
+  --category-transport: #85B7EB;
+  --category-leisure: #5DCAA5;
+  --category-shopping: #EF9F27;
+  --category-over-budget: #E24B4A;
+  --source-salary: #85B7EB;
+  --source-freelance: #378ADD;
+  --source-dividends: #B5D4F4;
+  --tint-teal: #04342C;
+  --tint-coral: #712B13;
+  --tint-purple: #26215C;
+  --tint-blue: #042C53;
+  --tint-amber: #412402;
+  --tint-red: #501313;
+  --tint-gray: #2C2C2A;
+}
